@@ -303,7 +303,13 @@ function updateCountdownDOM() {
 
 // ---- AVVIO APP ----
 async function init() {
+  // Primo tentativo + 2 retry: al primissimo caricamento il server può rispondere
+  // lento o fallire una tantum (cold start), quindi non ci arrendiamo al primo colpo.
   shared = await apiGet();
+  for (let tentativo = 0; tentativo < 2 && !shared; tentativo++) {
+    await new Promise(r => setTimeout(r, 1000));
+    shared = await apiGet();
+  }
   if (!shared) {
     document.getElementById("app").innerHTML = `
       <div class="setup-screen" style="text-align:center;padding-top:80px">
