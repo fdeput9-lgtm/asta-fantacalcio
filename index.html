@@ -227,15 +227,27 @@ async function apiPost(action, payload = {}) {
 }
 
 // ---- POLLING ----
+// Il polling gira sempre in background (per sapere subito quando l'asta parte,
+// quando arriva un'offerta, ecc.), ma se l'utente ha il focus su un campo di
+// testo (es. sta scrivendo il codice di accesso, o un nome squadra), saltiamo
+// il ridisegno del DOM per quel giro: altrimenti il campo viene ricreato da
+// zero e perde il focus, causando l'apri/chiudi della tastiera su mobile.
+function userIsTyping() {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
 function startPolling() {
   stopPolling();
   pollTimer = setInterval(async () => {
     if (busy) return; // non sovrascrivere mentre c'è un'azione locale in corso
     const data = await apiGet();
-    if (data) {
-      shared = data;
-      render();
-    }
+    if (!data) return;
+    shared = data;
+    if (userIsTyping()) return; // non ridisegnare mentre l'utente sta scrivendo
+    render();
   }, POLL_MS);
 }
 
