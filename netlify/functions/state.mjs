@@ -9,18 +9,26 @@
 import { getStore } from "@netlify/blobs";
 
 // ---- DATI STATICI DELL'ASTA ----
+// NOTA: i giocatori con "dirigente: true" sono i responsabili di una delle 4
+// squadre e NON possono essere chiamati/acquistati in asta (vedi filtro in
+// "start-auction" qui sotto).
 const PLAYERS = [
   { id:1, nome:"Andrea Hada", ruoli:["ATT"], eta:14, valore:33, squadra:"SVINCOLATO", caratteristiche:["Tiro Preciso","Talento","Cecchino","Rigorista"] },
-  { id:2, nome:"Michele Freda", ruoli:["DIF"], eta:14, valore:45, squadra:"ALIUS FC", caratteristiche:["Muro","Regista"] },
-  { id:3, nome:"Wassim Jbilou", ruoli:["ATT"], eta:14, valore:75, squadra:"ROYAL ACADEMY", caratteristiche:["Illusionista","Passaggi Incisivi","Tecnico","Inventivo"] },
+  { id:2, nome:"Michele Freda", ruoli:["DIF"], eta:14, valore:45, squadra:"ALIUS FC", caratteristiche:["Muro","Regista"], dirigente:true },
+  { id:3, nome:"Wassim Jbilou", ruoli:["ATT"], eta:14, valore:75, squadra:"ROYAL ACADEMY", caratteristiche:["Illusionista","Passaggi Incisivi","Tecnico","Inventivo"], dirigente:true },
   { id:4, nome:"Hamza Charifi", ruoli:["ATT"], eta:17, valore:60, squadra:"SVINCOLATO", caratteristiche:["Enfoncer","Tiro Potente","Rapido","Finalizzatore"] },
   { id:5, nome:"Yassir Charifi", ruoli:["ATT"], eta:11, valore:80, squadra:"SVINCOLATO", caratteristiche:["Tecnico","Illusionista","Gamechanger","Talento","Acrobata"] },
-  { id:6, nome:"Ilias Kone", ruoli:["ATT","CEN","DIF"], eta:14, valore:75, squadra:"SVINCOLATO", caratteristiche:["Regista","Rapido","Playmaker","Gamechanger","Passaggi Incisivi"] },
-  { id:7, nome:"Mohamed El Ghabi", ruoli:["DIF"], eta:13, valore:40, squadra:"SVINCOLATO", caratteristiche:["Veloce","Mastino","Talento","Offensivo"] },
+  { id:6, nome:"Ilias Kone", ruoli:["ATT","CEN","DIF"], eta:14, valore:75, squadra:"SVINCOLATO", caratteristiche:["Regista","Rapido","Playmaker","Gamechanger","Passaggi Incisivi"], dirigente:true },
+  { id:7, nome:"Mohamed El Ghabi", ruoli:["DIF"], eta:13, valore:40, squadra:"SVINCOLATO", caratteristiche:["Veloce","Mastino","Talento","Offensivo"], dirigente:true },
   { id:8, nome:"Ibrahima Zangare", ruoli:["ATT"], eta:16, valore:55, squadra:"SVINCOLATO", caratteristiche:["Enfoncer","Rapace","Leadership"] },
+  { id:9, nome:"Didie Cisse", ruoli:["ATT"], eta:11, valore:80, squadra:"SVINCOLATO", caratteristiche:["Talento","Tecnico","Rapido","Offensivo"] },
+  { id:10, nome:"Moussa Guene", ruoli:["ATT"], eta:12, valore:67, squadra:"SVINCOLATO", caratteristiche:["Tecnico","Tiro di Precisione","Talento"] },
+  { id:11, nome:"Zoe Tagliarini", ruoli:["DIF"], eta:13, valore:20, squadra:"SVINCOLATO", caratteristiche:["Passaggio Corto","Anticipo","Marcatura"] },
+  { id:12, nome:"Tommaso", ruoli:["ATT"], eta:14, valore:15, squadra:"SVINCOLATO", caratteristiche:["Posizionamento","Smarcatura","Resistenza","Elevazione"] },
 ];
 
-// Codici di accesso assegnati in ordine alle squadre (Squadra 1 -> ABC, ecc.)
+// Codici di accesso assegnati in ordine alle squadre.
+// Ordine fisso: Ilias -> ABC, Mohamed -> DIH, Wassim -> GOON, Michele -> ZEFE
 const TEAM_CODES = ["ABC", "DIH", "GOON", "ZEFE"];
 const MASTER_CODE = "RONALDOTHEGOAT";
 
@@ -31,10 +39,10 @@ function defaultState() {
   return {
     auctionStarted: false,
     teams: [
-      { name:"Squadra 1", budget:100, players:[] },
-      { name:"Squadra 2", budget:100, players:[] },
-      { name:"Squadra 3", budget:100, players:[] },
-      { name:"Squadra 4", budget:100, players:[] },
+      { name:"Ilias", budget:100, players:[] },
+      { name:"Mohamed", budget:100, players:[] },
+      { name:"Wassim", budget:100, players:[] },
+      { name:"Michele", budget:100, players:[] },
     ],
     startBudget: 100,
     countdownSecs: 15,
@@ -178,7 +186,9 @@ export default async (req, context) => {
     case "start-auction": {
       if (state.teams.some(t => !t.name.trim())) return publicError("Tutte le squadre devono avere un nome");
       state.teams.forEach(t => { t.budget = state.startBudget; t.players = []; });
-      state.available = [...PLAYERS];
+      // I dirigenti (Ilias, Mohamed, Wassim, Michele) non finiscono mai tra i
+      // giocatori disponibili: non possono essere chiamati né acquistati.
+      state.available = PLAYERS.filter(p => !p.dirigente);
       state.turnIdx = 0;
       state.currentPlayer = null;
       state.callerIdx = null;
