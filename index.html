@@ -180,6 +180,7 @@ let me = {
   loginError: "",
   role: null,            // "master" | "team" | "spectator" | null
   teamIndex: null,       // indice squadra se role === "team"
+  masterCode: null,      // codice Master salvato dopo il login, serve per l'azione "reset"
 };
 
 // ---- STATO CONDIVISO (ricevuto dal server) ----
@@ -323,6 +324,23 @@ async function init() {
   render();
 }
 
+// ---- RESET ASTA (Master) ----
+// Azione distruttiva: azzera completamente lo stato condiviso (squadre, budget,
+// giocatori assegnati, turno). Richiede il codice Master (già salvato dopo il
+// login) e una conferma esplicita per evitare click accidentali.
+async function doReset() {
+  if (me.role !== "master" || !me.masterCode) {
+    alert("⛔ Solo il Master può resettare l'asta.");
+    return;
+  }
+  const conferma = confirm("⚠️ Sei sicuro di voler resettare completamente l'asta?\n\nSquadre, budget, giocatori assegnati e turno andranno persi e si ripartirà da zero.");
+  if (!conferma) return;
+  const res = await apiPost("reset", { code: me.masterCode });
+  if (!res) return; // errore già mostrato da apiPost (es. codice non più valido)
+  me = { screen: "login", loginTarget: null, loginError: "", role: null, teamIndex: null, masterCode: null };
+  render();
+}
+
 // ---- RENDER ----
 function render() {
   const app = document.getElementById("app");
@@ -404,6 +422,7 @@ async function doLogin() {
     const res = await apiPost("login", { role: "master", code });
     if (!res) { me.loginError = "❌ Codice errato. Riprova."; render(); return; }
     me.loginTarget = null; me.loginError = ""; me.role = "master";
+    me.masterCode = code.trim().toUpperCase(); // serve per poter usare in seguito il tasto "Resetta Asta"
     me.screen = shared.auctionStarted ? "master" : "setup";
     render();
     return;
@@ -469,6 +488,7 @@ function renderSetup() {
       <p style="color:#64748b;font-size:12px">L'elenco completo dei giocatori è gestito dal server. Premi "Inizia l'Asta" per generare la lista dei disponibili.</p>
     </div>
     <button class="btn-start" id="btn-start" ${shared.teams.some(t=>!t.name.trim())?"disabled":""}>🎯 Inizia l'Asta</button>
+    <button class="btn-add-team" id="btn-reset-setup" style="margin-top:10px;border-color:#ef4444;color:#ef4444">🗑️ Reset completo (azzera tutto)</button>
   </div>`;
 }
 
@@ -481,6 +501,7 @@ function renderMaster() {
       <button class="btn-back" id="btn-logout">←</button>
       <h1>👑 Master — Asta a Chiamata</h1>
       <span style="background:#1e293b;border-radius:20px;padding:4px 12px;font-size:12px;color:#64748b;font-weight:700">${shared.available.length} rimasti</span>
+      <button class="btn-back" id="btn-reset-auction" title="Resetta l'asta" style="color:#ef4444">🔄</button>
     </div>`;
 
   const strip = `
@@ -792,6 +813,9 @@ function renderAvailableList(clickable) {
 }
 
 function renderEnd() {
+  const resetSection = me.role === "master"
+    ? `<button class="btn-restart" id="btn-restart">🔄 Nuova Asta</button>`
+    : `<p style="text-align:center;color:#64748b;font-size:13px;margin-top:16px">In attesa che il Master avvii una nuova asta...</p>`;
   return `
   <div class="end-screen">
     <h1>🏆 Asta Conclusa!</h1>
@@ -808,7 +832,7 @@ function renderEnd() {
               <span class="rprice">${p.price} cr</span>
             </div>`).join("")}
       </div>`).join("")}
-    <button class="btn-restart" id="btn-restart">🔄 Nuova Asta</button>
+    ${resetSection}
   </div>`;
 }
 
@@ -841,6 +865,7 @@ function attachEvents() {
       const res = await apiPost("start-auction");
       if (res) me.screen = "master";
     });
+    document.getElementById("btn-reset-setup")?.addEventListener("click", doReset);
   }
 
   // LOGIN
@@ -884,7 +909,7 @@ function attachEvents() {
 
   // LOGOUT (condiviso)
   document.getElementById("btn-logout")?.addEventListener("click", () => {
-    me = { screen: "login", loginTarget: null, loginError: "", role: null, teamIndex: null };
+    me = { screen: "login", loginTarget: null, loginError: "", role: null, teamIndex: null, masterCode: null };
     render();
   });
 
@@ -911,6 +936,7 @@ function attachEvents() {
       apiPost("advance-turn");
     });
     document.getElementById("btn-end")?.addEventListener("click", () => { me.screen = "end"; render(); });
+    document.getElementById("btn-reset-auction")?.addEventListener("click", doReset);
   }
 
   // TEAM VIEW
@@ -936,11 +962,7 @@ function attachEvents() {
 
   // END
   if (me.screen === "end") {
-    document.getElementById("btn-restart")?.addEventListener("click", async () => {
-      await apiPost("reset");
-      me = { screen: "login", loginTarget: null, loginError: "", role: null, teamIndex: null };
-      render();
-    });
+    document.getElementById("btn-restart")?.addEventListener("click", doReset);
   }
 }
 
