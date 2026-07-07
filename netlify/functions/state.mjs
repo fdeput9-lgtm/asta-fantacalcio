@@ -10,18 +10,18 @@ import { getStore } from "@netlify/blobs";
 
 // ---- DATI STATICI DELL'ASTA ----
 // NOTA: i giocatori con "dirigente: true" sono i responsabili di una delle 4
-// squadre (Ilias -> ROYAL ACADEMY, Mohamed -> RAIMON, Wassim -> ZEUS FC,
+// squadre (Ilias -> ROYAL ACADEMY, Mohamed -> NANKASTU FC, Wassim -> ZEUS,
 // Michele -> ALIUS FC) e NON possono essere chiamati/acquistati in asta
 // (vedi filtro in "start-auction" qui sotto: state.available esclude
 // sempre chi ha dirigente:true).
 const PLAYERS = [
   { id:1, nome:"Andrea Hada", ruoli:["ATT"], eta:14, valore:33, squadra:"SVINCOLATO", caratteristiche:["Tiro Preciso","Talento","Cecchino","Rigorista"] },
   { id:2, nome:"Michele Freda", ruoli:["DIF"], eta:14, valore:45, squadra:"ALIUS FC", caratteristiche:["Muro","Regista"], dirigente:true },
-  { id:3, nome:"Wassim Jbilou", ruoli:["ATT"], eta:14, valore:75, squadra:"ZEUS FC", caratteristiche:["Illusionista","Passaggi Incisivi","Tecnico","Inventivo"], dirigente:true },
+  { id:3, nome:"Wassim Jbilou", ruoli:["ATT"], eta:14, valore:75, squadra:"ZEUS", caratteristiche:["Illusionista","Passaggi Incisivi","Tecnico","Inventivo"], dirigente:true },
   { id:4, nome:"Hamza Charifi", ruoli:["ATT"], eta:17, valore:60, squadra:"SVINCOLATO", caratteristiche:["Enfoncer","Tiro Potente","Rapido","Finalizzatore"] },
   { id:5, nome:"Yassir Charifi", ruoli:["ATT"], eta:11, valore:80, squadra:"SVINCOLATO", caratteristiche:["Tecnico","Illusionista","Gamechanger","Talento","Acrobata"] },
   { id:6, nome:"Ilias Kone", ruoli:["ATT","CEN","DIF"], eta:14, valore:75, squadra:"ROYAL ACADEMY", caratteristiche:["Regista","Rapido","Playmaker","Gamechanger","Passaggi Incisivi"], dirigente:true },
-  { id:7, nome:"Mohamed El Ghabi", ruoli:["DIF"], eta:13, valore:40, squadra:"RAIMON", caratteristiche:["Veloce","Mastino","Talento","Offensivo"], dirigente:true },
+  { id:7, nome:"Mohamed El Ghabi", ruoli:["DIF"], eta:13, valore:40, squadra:"NANKASTU FC", caratteristiche:["Veloce","Mastino","Talento","Offensivo"], dirigente:true },
   { id:8, nome:"Ibrahima Zangare", ruoli:["ATT"], eta:16, valore:55, squadra:"SVINCOLATO", caratteristiche:["Enfoncer","Rapace","Leadership"] },
   { id:9, nome:"Didie Cisse", ruoli:["ATT"], eta:11, valore:80, squadra:"SVINCOLATO", caratteristiche:["Talento","Tecnico","Rapido","Offensivo"] },
   { id:10, nome:"Moussa Guene", ruoli:["ATT"], eta:12, valore:67, squadra:"SVINCOLATO", caratteristiche:["Tecnico","Tiro di Precisione","Talento"] },
@@ -42,8 +42,8 @@ function defaultState() {
     auctionStarted: false,
     teams: [
       { name:"ROYAL ACADEMY", budget:100, players:[] }, // dirigente: Ilias (codice ABC)
-      { name:"RAIMON", budget:100, players:[] },        // dirigente: Mohamed (codice DIH)
-      { name:"ZEUS FC", budget:100, players:[] },       // dirigente: Wassim (codice GOON)
+      { name:"NANKASTU FC", budget:100, players:[] },   // dirigente: Mohamed (codice DIH)
+      { name:"ZEUS", budget:100, players:[] },          // dirigente: Wassim (codice GOON)
       { name:"ALIUS FC", budget:100, players:[] },      // dirigente: Michele (codice ZEFE)
     ],
     startBudget: 100,
@@ -130,7 +130,12 @@ export default async (req, context) => {
 
   switch (action) {
     case "reset": {
-      // Solo per il Master: azzera completamente l'asta (nuova partita)
+      // Solo per il Master: azzera completamente l'asta (nuova partita).
+      // Richiede il codice Master nel body ({ action:"reset", code:"RONALDOTHEGOAT" })
+      // così il tasto di reset non può essere azionato per sbaglio da altri client.
+      const { code } = body;
+      const upperCode = (code || "").trim().toUpperCase();
+      if (upperCode !== MASTER_CODE) return publicError("Solo il Master può resettare l'asta");
       state = defaultState();
       break;
     }
